@@ -1,0 +1,35 @@
+
+> gods-eye-view@0.1.0 dev
+> vite --host localhost --port 4173
+
+
+  VITE v6.4.3  ready in 2107 ms
+
+  ➜  Local:   http://localhost:4173/
+  ➜  press h + enter to show help
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)
+1:47:43 PM [vite] (client) page reload index.html
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)
+2:21:24 PM [vite] (client) page reload index.html
+2:21:28 PM [vite] (client) page reload index.html
+2:21:34 PM [vite] (client) page reload index.html
+2:21:40 PM [vite] (client) page reload index.html
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)
+2:22:48 PM [vite] (client) page reload index.html
+2:25:31 PM [vite] (client) hmr update /style.css?direct
+2:27:48 PM [vite] (client) hmr update /style.css?direct
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)

@@ -1,13 +1,16 @@
-node_modules
-dist
+# Dependencies (app runtime deps only; the vendored Node toolchain in tools/node is tracked)
+/node_modules
+
+# Secrets - never commit
 .env
-*.log
-/screenshots/
-qa-shots/
-output/
-.gev-logs/
-.gev-cache/
+**/.env
+
+# OS / editor noise
 .DS_Store
+
+# Scratch output
+/screenshots/
+output/
 .gstack/
 3d-models/
 /Screenshot*.png

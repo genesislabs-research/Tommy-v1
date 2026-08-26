@@ -1,0 +1,2 @@
+[CCTV] source catalog 1050 exceeds cap 900; keeping the first 900 (raise CCTV_MAX_SOURCES or lower a per-pack cap to change which).
+[terrain-heights-proxy] refresh incomplete (The operation was aborted due to timeout) — serving stale points when available

@@ -1,0 +1,12 @@
+
+> gods-eye-view@0.1.0 dev
+> vite --host localhost --port 4173
+
+
+  VITE v6.4.3  ready in 2027 ms
+
+  ➜  Local:   http://localhost:4173/
+  ➜  press h + enter to show help
+[CCTV] Loaded TfL JamCam sources: 796 available (using nearest 500)
+[CCTV] Loaded Austin camera sources: 817 (using nearest 250)
+[CCTV] Loaded Caltrans camera sources: 1821 inService (using nearest 300)

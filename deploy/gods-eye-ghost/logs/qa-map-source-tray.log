@@ -1,0 +1,29 @@
+
+> gods-eye-view@0.1.0 qa:map-source-tray
+> node scripts/qa-map-source-tray.mjs
+
+  [PASS] exact four-source presentation; the retired left Map Stack panel is gone — {"ids":["photoreal","bing-aerial","bing-labels","osm"],"retiredPanel":false,"toggleTag":"BUTTON","controls":"control-panel-popover"}
+  [PASS] compact wing is a semantic disclosure — {"ids":["photoreal","bing-aerial","bing-labels","osm"],"retiredPanel":false,"toggleTag":"BUTTON","controls":"control-panel-popover"}
+  [PASS] Enter opens the tray and hands focus to a Map Source tile — {"expanded":"true","activeStack":"photoreal"}
+  [PASS] Escape closes the tray and restores disclosure focus — {"expanded":"false","activeId":"control-panel-toggle"}
+  [PASS] Space opens the tray through the same keyboard path — {"expanded":"true","activeStack":"photoreal"}
+  [PASS] long Enter hold cannot strand the disclosure keyboard path — {"expanded":"true","activeStack":"photoreal"}
+  [FAIL] key-required sources stay focusable, explained, and inert when no ion token is configured — {"focused":true,"ariaDisabled":"true","ariaLabel":"Bing Aerial unavailable: Cesium ion token required for Bing stacks","active":[]}
+  [FAIL] switching feedback is truthful and active state moves only after commit — {"before":"esri-aerial","during":{"status":"...","active":[]},"after":{"status":"OSM","active":["osm"]}}
+  [FAIL] ACQUIRING DOM notice persists, ignores stale terminals, and clears on ownership completion — {"pending":{"hidden":false,"state":"acquiring","label":"ACQUIRING","detail":"SHARED FLIGHT"},"followed":{"hidden":false,"state":"complete","label":"LOAD COMPLETE","detail":""},"staleTerminal":{"hidden":false,"state":"acquiring","label":"ACQUIRING","detail":"SHARED MILITARY FLIGHT"},"cancelled":{"hidden":false,"state":"complete","label":"LOAD COMPLETE","detail":""}}
+  [PASS] manager failure then queued share failure each receives its full visible dwell — {"failureStart":{"hidden":false,"state":"error","label":"LOAD FAILED","detail":""},"queuedNoticeReady":true,"shareFailureQueued":{"hidden":false,"state":"error","label":"LOAD FAILED","detail":""},"failureEnd":{"hidden":false,"state":"error","label":"LOAD FAILED","detail":""},"shareFailureStart":{"hidden":false,"state":"error","label":"Shared flight could not be restored — feed unavailable","detail":""},"shareFailureEnd":{"hidden":false,"state":"error","label":"Shared flight could not be restored — feed unavailable","detail":""},"settled":{"hidden":true,"state":null,"label":"Shared flight could not be restored — feed unavailable","detail":""}}
+  [PASS] keyboard activation of a tile HOLDS the tray open through the same mouse-away — {"keyboardAfterActivate":{"focusedStack":"bing-aerial","isChip":true},"keyboardHold":{"collapsed":false,"expanded":"true","focusInside":true,"focusVisible":true}}
+  [PASS] a tile click does not exempt the unpinned tray from mouse-away auto-dismiss — {"dismissAfterTileClick":{"afterClick":{"collapsed":false,"expanded":"true","focusInside":true,"focusVisible":false},"afterLeave":{"collapsed":true,"expanded":"false","focusInside":false,"focusVisible":false}},"pinnedForHold":true,"pinnedHold":{"afterClick":{"collapsed":false,"expanded":"true","focusInside":true,"focusVisible":false},"afterLeave":{"collapsed":false,"expanded":"true","focusInside":true,"focusVisible":false}}}
+file:///G:/tommy/donors/gods-eye-ghost/node_modules/puppeteer-core/lib/esm/puppeteer/api/ElementHandle.js:692
+                throw new Error('Node is either not clickable or not an Element');
+                      ^
+
+Error: Node is either not clickable or not an Element
+    at CdpElementHandle.clickablePoint (file:///G:/tommy/donors/gods-eye-ghost/node_modules/puppeteer-core/lib/esm/puppeteer/api/ElementHandle.js:692:23)
+    at async CdpElementHandle.<anonymous> (file:///G:/tommy/donors/gods-eye-ghost/node_modules/puppeteer-core/lib/esm/puppeteer/api/ElementHandle.js:118:20)
+    at async CdpElementHandle.click (file:///G:/tommy/donors/gods-eye-ghost/node_modules/puppeteer-core/lib/esm/puppeteer/api/ElementHandle.js:722:30)
+    at async CdpElementHandle.<anonymous> (file:///G:/tommy/donors/gods-eye-ghost/node_modules/puppeteer-core/lib/esm/puppeteer/api/ElementHandle.js:129:24)
+    at async CdpFrame.click (file:///G:/tommy/donors/gods-eye-ghost/node_modules/puppeteer-core/lib/esm/puppeteer/api/Frame.js:749:17)
+    at async file:///G:/tommy/donors/gods-eye-ghost/scripts/qa-map-source-tray.mjs:547:3
+
+Node.js v22.23.2

@@ -1,0 +1,3 @@
+# Secrets - never commit. This holds the live OPENAI_API_KEY.
+.env
+*.env
