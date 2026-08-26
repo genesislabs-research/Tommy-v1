@@ -451,12 +451,18 @@ body.cockpit-mode #cockpit-cloud-effects.active {
   align-items: center;
   gap: 12px;
   font-family: var(--font-mono);
-  font-size: 26px;
+  /* Fluid so a long product title still clears the #top-center-actions buttons.
+     The mono advance per glyph is ~0.6em + letter-spacing, so the tracking is
+     scaled alongside the size - shrinking font-size alone barely helps when the
+     title is 30+ characters. Upper bounds stay below the original 26px/8px to
+     leave real clearance at 1920; the <=1152px media query still overrides. */
+  font-size: clamp(13px, calc(2vw - 14px), 24px);
   font-weight: 600;
-  letter-spacing: 8px;
+  letter-spacing: clamp(3px, calc(0.6vw - 4.5px), 7px);
   color: var(--text-primary);
   text-shadow: 0 0 30px var(--accent-glow);
   position: relative;
+  white-space: nowrap;
 }
 
 #title-bar .title-logo {
