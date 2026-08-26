@@ -1,4 +1,4 @@
-# Dependencies (app runtime deps only; the vendored Node toolchain in tools/node is tracked)
+# Dependencies - regenerable with `npm ci`
 /node_modules
 
 # Secrets - never commit
@@ -14,3 +14,18 @@ output/
 .gstack/
 3d-models/
 /Screenshot*.png
+
+# Vendored Node runtime - reinstall from nodejs.org instead of committing 133MB.
+tools/node/
+tools/node-*.zip
+
+# Build output - regenerate with `npm run build`
+dist/
+
+# Runtime caches and logs
+.gev-cache/
+.gev-logs/
+*.log
+
+# Deployment secrets (OpenAI key)
+deploy/gods-eye-ghost/.env
