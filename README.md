@@ -105,7 +105,7 @@ Turn layers on from the tray. Most of them need **no key**.
 | **Google Photorealistic 3D** | Street-level mesh | Optional, **billed by Google** |
 | **Voice / AI HUD** | OpenAI Realtime | Optional, **billed by OpenAI** |
 
-**Keyboard:** `1`–`7` visual styles · `H` HUD · `D` detection · `C` cockpit · `Esc` close inspect.
+**Keyboard:** `1`–`7` visual styles · `H` HUD · `D` detection · `C` cockpit · `` ` `` Tommy console · `Esc` close inspect.
 
 ---
 
@@ -119,6 +119,59 @@ Ghost Edition does not proxy your wallet through Google or OpenAI unless **you**
 - **Voice:** Off until `OPENAI_API_KEY` exists. The rest of the product does not wait on it.
 
 If you later enable Google Map Tiles or OpenAI, those providers bill you — Ghost Edition never requires them.
+
+---
+
+## Tommy harness — drive the map with your own model
+
+The voice controller is OpenAI's. The **harness** is the typed path to the exact
+same 28 map verbs, driven by a private or self-hosted model. Both end up in one
+place — `runner`, the model-agnostic dispatcher in `src/voice/gevActions.js` —
+so nothing about the map is reimplemented, and the voice path is untouched.
+
+```
+OpenAI Realtime (voice)        your model (typed)
+        │                              │
+        └──────────► runner ◄──────────┘
+                       │
+                   the map
+```
+
+**Run it against LM Studio** (Bionic or classic — both serve the same
+OpenAI-compatible API at `localhost:1234`):
+
+1. Load a tool-calling model in LM Studio and start its local server.
+2. `npm run dev` — no configuration needed; `http://localhost:1234/v1` is the
+   default target.
+3. Click **TOMMY** above the command dock, or press `` ` ``, and type:
+   *"fly to Tokyo and show me aircraft"*.
+
+The console prints the reply plus an `actions:` line naming every verb that
+ran — and every one that failed, individually, so a confident sentence from the
+model can't paper over an action that didn't happen.
+
+Any OpenAI-shaped `/v1` endpoint with tool calling works (vLLM, Ollama,
+llama.cpp, LM proxies): point `HARNESS_LLM_BASE_URL` at it. Swapping to a
+protocol that *isn't* OpenAI-shaped means writing one adapter in
+`src/harness/backends/` — nothing in `gevActions.js` or the map changes.
+
+**No secrets in the browser.** The endpoint, the key, and the model id live
+server-side behind `/api/harness/chat`, the same pattern as
+`/api/realtime/token`. See `.env.example` for the knobs, including how to turn
+the harness off.
+
+Each turn the model is handed a live state snapshot built from the same read
+verbs the voice model calls (`get_current_view_state` + `analyst_query`),
+including their warm-up and provenance notes — so a layer that was enabled two
+seconds ago gets narrated as *still loading* rather than as a low count.
+
+```
+src/harness/
+├── harnessController.js    # text-in / actions-out turn loop
+├── snapshot.js             # live world state, honesty notes intact
+├── harnessConsole.js       # the typed console in the HUD
+└── backends/               # swap the model here, and only here
+```
 
 ---
 

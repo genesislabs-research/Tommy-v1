@@ -9519,3 +9519,198 @@ body.scene-playback-mode #first-run-launcher {
   /* Scrolling a tile into view must not animate either. */
   .first-run-choices { scroll-behavior: auto; }
 }
+
+/* ========================================================================== *
+ * Tommy harness console — the typed path to the same map verbs the voice
+ * controller drives. Sits above the command dock and stays collapsed to a
+ * single chip until asked for, so it costs no permanent room over the globe.
+ * ========================================================================== */
+
+#gev-harness-console {
+  position: fixed;
+  bottom: calc(2vh + 118px);
+  left: 50%;
+  z-index: 146;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(94vw, 560px);
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  pointer-events: none;
+}
+
+#gev-harness-console > * { pointer-events: auto; }
+
+.gev-harness-launcher {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 5px 13px;
+  color: rgba(232, 234, 237, 0.72);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  background: rgba(9, 18, 27, 0.84);
+  border: 1px solid rgba(123, 189, 211, 0.28);
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.gev-harness-launcher:hover,
+#gev-harness-console[data-open='1'] .gev-harness-launcher {
+  color: var(--ghost);
+  border-color: var(--ghost-glow);
+}
+
+.gev-harness-launcher-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--ghost);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--ghost-glow);
+}
+
+#gev-harness-console[data-busy='1'] .gev-harness-launcher-dot {
+  animation: gev-harness-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes gev-harness-pulse {
+  50% { opacity: 0.25; }
+}
+
+.gev-harness-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  background: rgba(8, 16, 24, 0.93);
+  border: 1px solid rgba(92, 255, 154, 0.26);
+  border-radius: 12px;
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.6),
+    0 0 24px rgba(92, 255, 154, 0.08);
+  backdrop-filter: blur(26px) saturate(1.35);
+  -webkit-backdrop-filter: blur(26px) saturate(1.35);
+}
+
+.gev-harness-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(123, 189, 211, 0.16);
+}
+
+.gev-harness-kicker {
+  color: var(--ghost);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+}
+
+.gev-harness-status {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-align: right;
+}
+
+#gev-harness-console[data-status='busy'] .gev-harness-status { color: var(--accent); }
+
+.gev-harness-close {
+  padding: 0 4px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.gev-harness-close:hover { color: var(--text-primary); }
+
+.gev-harness-log {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 34vh;
+  padding: 10px 12px;
+  overflow-y: auto;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.gev-harness-log:empty { display: none; }
+
+.gev-harness-entry-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.gev-harness-entry-detail {
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.gev-harness-entry-user .gev-harness-entry-text { color: var(--accent); }
+.gev-harness-entry-user .gev-harness-entry-text::before { content: '› '; }
+.gev-harness-entry-reply .gev-harness-entry-text { color: var(--text-primary); }
+.gev-harness-entry-error .gev-harness-entry-text { color: #ff7b7b; }
+.gev-harness-entry-state .gev-harness-entry-text,
+.gev-harness-entry-note .gev-harness-entry-text {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.gev-harness-form {
+  display: flex;
+  gap: 8px;
+  padding: 9px 12px;
+  border-top: 1px solid rgba(123, 189, 211, 0.16);
+}
+
+.gev-harness-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(123, 189, 211, 0.22);
+  border-radius: 7px;
+  outline: none;
+}
+
+.gev-harness-input:focus { border-color: var(--ghost-glow); }
+.gev-harness-input::placeholder { color: var(--text-dim); }
+
+.gev-harness-send {
+  padding: 7px 14px;
+  color: var(--ghost);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  background: var(--ghost-dim);
+  border: 1px solid rgba(92, 255, 154, 0.3);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.gev-harness-send:hover:not(:disabled) { background: rgba(92, 255, 154, 0.28); }
+.gev-harness-send:disabled { opacity: 0.45; cursor: default; }
+
+/* Cockpit takes the whole screen; the dock and the harness both step aside. */
+body.cockpit-mode #gev-harness-console { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #gev-harness-console[data-busy='1'] .gev-harness-launcher-dot { animation: none; }
+  .gev-harness-launcher,
+  .gev-harness-send { transition: none; }
+}

@@ -5397,6 +5397,293 @@ function openAiRealtimeProxy() {
   };
 }
 
+/* ------------------------------------------------------------------------- *
+ * Tommy harness — private/self-hosted LLM proxy.
+ *
+ * The harness is the TYPED path into the same map seam the OpenAI voice
+ * controller drives (`runner` in src/voice/gevRealtime.js). It is additive:
+ * nothing here touches the Realtime audio path above.
+ *
+ * Everything provider-specific lives behind these routes so the browser bundle
+ * never learns the private-LLM endpoint or its key — the same discipline as
+ * /api/realtime/token.
+ * ------------------------------------------------------------------------- */
+
+/** LM Studio (Bionic and classic) serves the OpenAI-compatible API here. */
+const HARNESS_LLM_BASE_URL_DEFAULT = 'http://localhost:1234/v1';
+const HARNESS_LLM_MODEL_DEFAULT = 'local-model';
+const HARNESS_LLM_TIMEOUT_MS_DEFAULT = 120_000;
+const HARNESS_CHAT_MAX_BODY_BYTES = 1024 * 1024;
+/** Upstream reply cap. A local model that runs away must not wedge the tab. */
+const HARNESS_CHAT_MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+/** Only these keys reach the upstream model; anything else is dropped. */
+const HARNESS_CHAT_PASSTHROUGH_KEYS = Object.freeze([
+  'model', 'temperature', 'top_p', 'max_tokens', 'seed', 'stop', 'tool_choice',
+]);
+
+let _harnessRateLimiter;
+/** Harness chat endpoint. Null = unlimited (default). */
+function harnessRateLimiter() {
+  if (_harnessRateLimiter === undefined) {
+    _harnessRateLimiter = makeOptInRateLimiter(process.env.GEV_RATELIMIT_HARNESS_PER_MIN);
+  }
+  return _harnessRateLimiter;
+}
+
+/**
+ * Resolve the private-LLM target from the environment.
+ *
+ * `enabled` is deliberately true whenever a base URL resolves — LM Studio and
+ * most self-host stacks need no key at all, so "no key" is a normal, working
+ * configuration here rather than the misconfiguration it is for OpenAI.
+ */
+export function resolveHarnessLlmConfig(env = process.env) {
+  // Unset means "use the LM Studio default"; set-but-blank means "off". That
+  // distinction is the off switch: an operator who does not want the harness
+  // comments out the value rather than deleting the line and getting it back.
+  const rawBaseUrl = env.HARNESS_LLM_BASE_URL === undefined
+    ? HARNESS_LLM_BASE_URL_DEFAULT
+    : env.HARNESS_LLM_BASE_URL;
+  const baseUrl = String(rawBaseUrl ?? '').trim().replace(/\/+$/, '');
+  const model = String(env.HARNESS_LLM_MODEL || HARNESS_LLM_MODEL_DEFAULT).trim() || HARNESS_LLM_MODEL_DEFAULT;
+  const apiKey = String(env.HARNESS_LLM_API_KEY || '').trim();
+  const timeoutMs = Math.round(Math.max(
+    1000,
+    Math.min(600_000, Number(env.HARNESS_LLM_TIMEOUT_MS) || HARNESS_LLM_TIMEOUT_MS_DEFAULT),
+  ));
+  return { baseUrl, model, apiKey, timeoutMs, enabled: Boolean(baseUrl) };
+}
+
+/**
+ * GEV_REALTIME_TOOLS (OpenAI Realtime shape) → chat-completions `tools`.
+ *
+ * Same 28 verbs, same JSON Schemas, same descriptions — only the envelope
+ * differs (Realtime is flat; chat-completions nests under `function`). The
+ * schema stays single-sourced so the harness can never drift from voice.
+ */
+export function harnessChatCompletionTools(tools = GEV_REALTIME_TOOLS) {
+  return tools
+    .filter((tool) => tool?.type === 'function' && tool.name)
+    .map((tool) => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description || '',
+        // A tool with no arguments still needs an object schema here; several
+        // OpenAI-compatible servers reject a missing/`null` parameters block.
+        parameters: tool.parameters || { type: 'object', properties: {} },
+      },
+    }));
+}
+
+/**
+ * Text-mode system prompt for the harness.
+ *
+ * Deliberately NOT the voice controller's instructions: those are written for
+ * a spoken, always-listening session (wake-phrase handling, "keep spoken
+ * confirmations short", screenshot fallbacks). The tool-selection rules that
+ * are about the MAP rather than about speech are restated here, because they
+ * are what keeps a small local model from inventing verbs or narrating moves
+ * that never happened.
+ */
+export const HARNESS_SYSTEM_INSTRUCTIONS = [
+  'You are Tommy, the typed command controller for a Cesium geospatial app called Gods Eye Ghost Edition.',
+  'You drive the map ONLY by calling the provided tools. Never invent tool names or arguments.',
+  'Each turn begins with a system message holding a live WORLD STATE snapshot: the camera position, the active style and panels, and an analyst summary of the entities currently loaded. Read it before you act — it is what is actually on screen right now.',
+  'The snapshot is honest about its own limits. If coverage.warmup is present, a layer was enabled seconds ago and is still loading: say so instead of reporting the low count as fact. If coverage.note mentions viewport-loaded data, say which scope your number covers. If countsReconciliation is present, follow it — it names which count answers the question.',
+  'Never state that the camera moved, a layer opened, or an annotation was drawn unless the tool result came back ok=true. If a tool fails, say what failed.',
+  'For destinations ("fly to Tokyo", "show me the Eiffel Tower") call fly_to_location. Omit rangeM so the app frames countries, cities, and landmarks itself; pass it only when the user asks for a specific height or distance.',
+  'For relative framing ("zoom out a little", "get closer") call adjust_camera_zoom. For "globe view" / "the whole planet" call zoom_to_globe once — repeated zoom steps never reach the globe.',
+  'For camera motion ("orbit this", "pan left", "stop moving") call move_camera. To fly a drawn route call fly_route.',
+  'For questions about what is on screen or about a selected contact, call get_entity_context. For counts, lists, superlatives, and attribute filters over live layers ("how many flights over Texas", "biggest fire near LA"), call analyst_query — it only sees ENABLED layers, so if the layer is off, say so and offer to enable it.',
+  'For requests to open, show, or focus a menu or panel, call set_panel_open or show_data_layers_menu. "Show me the datacenter layers" opens the menu and focuses that row; do not enable a layer unless the user asks to turn it on.',
+  'When you explain a specific place, building, campus, district, or a spatial relationship, call annotate_map to mark it as you write. Use type=area for a real footprint, type=pin for a labeled marker, type=highlight for a transient pulse on an exact spot, type=arrow for "X is next to Y", and type=route for a real street-following path. Set entityKind to what the thing IS (building, compound, district, street, point_feature). Prefer place NAMES — never invent coordinates.',
+  'Annotations accumulate and persist by design. Never pass clearPrevious, and call clear_annotations ONLY when the user explicitly asks to clear the map. If a result has partial:true or failedLabels, admit which places you could not place. outlinePending:true means the boundary is still being traced — describe it as in progress, never as drawn.',
+  'You may call several tools in one step when a request genuinely needs them, and you will see every result before you reply.',
+  'Answer in plain text — this is a typed console, not speech. Be brief and concrete: say what the map now shows.',
+].join('\n');
+
+/**
+ * Validate and narrow a harness chat request.
+ *
+ * The browser supplies the conversation; the server owns the tools, the system
+ * prompt, the endpoint, and the key. Sampling knobs pass through because they
+ * are harmless and useful to tune per model, but nothing else does — a client
+ * cannot, for instance, smuggle its own `tools` past the server-side schema.
+ */
+export function sanitizeHarnessChatRequest(raw, { model } = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { error: 'Request body must be a JSON object' };
+  }
+  if (!Array.isArray(raw.messages) || raw.messages.length === 0) {
+    return { error: 'messages must be a non-empty array' };
+  }
+  const messages = [];
+  for (const message of raw.messages) {
+    if (!message || typeof message !== 'object' || Array.isArray(message)) {
+      return { error: 'each message must be an object' };
+    }
+    if (typeof message.role !== 'string' || !message.role) {
+      return { error: 'each message needs a role' };
+    }
+    const out = { role: message.role };
+    if (message.content !== undefined) out.content = message.content;
+    if (Array.isArray(message.tool_calls)) out.tool_calls = message.tool_calls;
+    if (typeof message.tool_call_id === 'string') out.tool_call_id = message.tool_call_id;
+    if (typeof message.name === 'string') out.name = message.name;
+    messages.push(out);
+  }
+  const payload = {
+    model,
+    messages: [{ role: 'system', content: HARNESS_SYSTEM_INSTRUCTIONS }, ...messages],
+    tools: harnessChatCompletionTools(),
+    tool_choice: 'auto',
+    // Streaming would defeat the point: the controller needs the whole
+    // tool_calls array before it can dispatch anything.
+    stream: false,
+  };
+  for (const key of HARNESS_CHAT_PASSTHROUGH_KEYS) {
+    if (raw[key] !== undefined && raw[key] !== null) payload[key] = raw[key];
+  }
+  // A client-sent model is a convenience, not an escape hatch: it still has to
+  // be a plain non-empty string, and the env default wins when it is not.
+  if (typeof payload.model !== 'string' || !payload.model.trim()) payload.model = model;
+  payload.stream = false;
+  return { payload };
+}
+
+/**
+ * The POST /api/harness/chat handler, factored out so tests can drive it with
+ * a stub fetch instead of a live LM Studio.
+ */
+export function createHarnessChatMiddleware({ fetchImpl = null, env = process.env } = {}) {
+  const doFetch = fetchImpl || ((...args) => fetch(...args));
+  return async function harnessChat(req, res) {
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+
+    // Opt-in per-IP throttle (GEV_RATELIMIT_HARNESS_PER_MIN). No-op when unset.
+    if (!enforceOptInRateLimit(harnessRateLimiter(), req, res)) return;
+
+    const config = resolveHarnessLlmConfig(env);
+    if (!config.enabled) {
+      res.statusCode = 503;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'HARNESS_LLM_BASE_URL is not set' }));
+      return;
+    }
+
+    let sanitized;
+    try {
+      const body = await readRequestBody(req, HARNESS_CHAT_MAX_BODY_BYTES);
+      sanitized = sanitizeHarnessChatRequest(JSON.parse(body || '{}'), { model: config.model });
+    } catch (error) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: error?.message || 'Invalid harness chat request' }));
+      return;
+    }
+    if (sanitized.error) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: sanitized.error }));
+      return;
+    }
+
+    const timeout = AbortSignal.timeout(config.timeoutMs);
+    try {
+      const response = await doFetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        },
+        body: JSON.stringify(sanitized.payload),
+        signal: timeout,
+      });
+      const text = await readResponseTextCapped(response, HARNESS_CHAT_MAX_RESPONSE_BYTES);
+      res.statusCode = response.status;
+      res.setHeader('Content-Type', response.headers?.get?.('content-type') || 'application/json');
+      res.setHeader('Cache-Control', 'no-store');
+      // Which model actually answered, so a wrong HARNESS_LLM_MODEL is a
+      // visible config fact rather than a mystery reply.
+      res.setHeader('X-GEV-Harness-Model', String(sanitized.payload.model || ''));
+      res.end(text);
+    } catch (error) {
+      res.statusCode = 502;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        error: error?.name === 'TimeoutError'
+          ? `Harness LLM did not respond within ${config.timeoutMs}ms`
+          : error?.message || 'Harness LLM request failed',
+      }));
+    }
+  };
+}
+
+/**
+ * Vite plugin: private/self-hosted LLM proxy for the Tommy harness.
+ *
+ * Mirrors openAiRealtimeProxy's shape. Three routes: what the harness is
+ * configured against, the tool schema it may call, and the chat turn itself.
+ */
+function harnessLlmProxy({ fetchImpl = null } = {}) {
+  const chat = createHarnessChatMiddleware({ fetchImpl });
+  function install(middlewares) {
+    middlewares.use('/api/harness/config', (req, res) => {
+      if (req.method !== 'GET') {
+        res.statusCode = 405;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method not allowed' }));
+        return;
+      }
+      const config = resolveHarnessLlmConfig();
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      // baseUrl and model are configuration, not secrets, and seeing them in
+      // the console is how you diagnose "it answered nothing". The key never
+      // leaves the server — only whether one is set.
+      res.end(JSON.stringify({
+        enabled: config.enabled,
+        baseUrl: config.baseUrl,
+        model: config.model,
+        hasApiKey: Boolean(config.apiKey),
+        toolCount: harnessChatCompletionTools().length,
+      }));
+    });
+
+    middlewares.use('/api/harness/tools', (req, res) => {
+      if (req.method !== 'GET') {
+        res.statusCode = 405;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method not allowed' }));
+        return;
+      }
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.end(JSON.stringify({ tools: harnessChatCompletionTools() }));
+    });
+
+    middlewares.use('/api/harness/chat', chat);
+  }
+
+  return {
+    name: 'gev-harness-llm-proxy',
+    configureServer(server) {
+      install(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      install(server.middlewares);
+    },
+  };
+}
+
 function extractOpenAiResponseText(data) {
   if (typeof data?.output_text === 'string' && data.output_text.trim()) {
     return data.output_text.trim();
@@ -7533,6 +7820,7 @@ export default defineConfig(({ mode }) => {
       aisLiveProxy(),
       trackBackfillProxies(),
       openAiRealtimeProxy(),
+      harnessLlmProxy(),
       googlePlacesContextProxy(),
     ],
     server: {
