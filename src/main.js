@@ -19,6 +19,7 @@ import { LAYER_STATE_REGISTRY } from './data/layerState.js';
 import { registerDataCredits } from './data/dataCredits.js';
 import { SceneDirector } from './scenes/director.js';
 import { initGevVoiceCommands } from './voice/gevRealtime.js';
+import { initGevHarness } from './harness/index.js';
 import { MapStackController } from './mapStackController.js';
 import { initAnnotations } from './annotations/index.js';
 import { initLogoGaze } from './logoGaze.js';
@@ -338,6 +339,22 @@ async function init() {
       requestRender: governorRequestRender,
     };
     window.__godsEyeView.voiceCommands = initGevVoiceCommands({ viewer, styleManager, dataManager, sceneDirector, annotations });
+
+    // Tommy harness: the typed path to the SAME map verbs, driven by a
+    // private/self-hosted model. Additive — the voice controller above is
+    // untouched, and both share one runner. Async and non-fatal: with no
+    // private-LLM endpoint configured it mounts nothing and the app is
+    // exactly as it was.
+    initGevHarness({
+      viewer,
+      styleManager,
+      dataManager,
+      sceneDirector,
+      annotations,
+      runner: window.__godsEyeView.voiceCommands?.runner || null,
+    })
+      .then((harness) => { window.__godsEyeView.harness = harness; })
+      .catch((error) => console.warn('[gev-harness] init failed:', error?.message || error));
 
   } catch (error) {
     console.error('Gods Eye (Ghost Edition) initialization failed:', error);
